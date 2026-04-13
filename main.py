@@ -9,12 +9,19 @@ from threading import Thread
 
 load_dotenv()
 
-API_TOKEN = os.getenv("API_TOKEN")
+# ===== ENV =====
+API_TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
-MONGO_URL = os.getenv("MONGO_URL")
+MONGO_URL = os.getenv("MONGO_URI")
+
+if not API_TOKEN:
+    raise Exception("BOT_TOKEN missing")
+if not MONGO_URL:
+    raise Exception("MONGO_URI missing")
 
 bot = telebot.TeleBot(API_TOKEN)
 
+# ===== DATABASE =====
 client = MongoClient(MONGO_URL)
 db = client["telegram_bot"]
 users_col = db["users"]
@@ -24,7 +31,7 @@ CHANNELS = ["@joinmoney_earning"]
 
 user_step = {}
 
-# ================= USERS =================
+# ===== USER =====
 def get_user(user_id):
     user = users_col.find_one({"user_id": user_id})
     if not user:
@@ -45,7 +52,7 @@ def check_join(user_id):
             return False
     return True
 
-# ================= AUTO MESSAGE =================
+# ===== AUTO MESSAGE =====
 def auto_message():
     msgs = [
         "🔥 Someone withdrew ₹290",
@@ -60,7 +67,7 @@ def auto_message():
                 pass
         time.sleep(300)
 
-# ================= START =================
+# ===== START =====
 @bot.message_handler(commands=['start'])
 def start(msg):
     get_user(msg.from_user.id)
@@ -68,13 +75,13 @@ def start(msg):
     kb = InlineKeyboardMarkup()
     kb.add(
         InlineKeyboardButton("Join Main", url="https://t.me/joinmoney_earning"),
-        InlineKeyboardButton("Join Backup", url="https://t.me/joinmoney_earning"),
-        InlineKeyboardButton("Verify", callback_data="verify")
+        InlineKeyboardButton("Join Backup", url="https://t.me/joinmoney_earning")
     )
+    kb.add(InlineKeyboardButton("Verify", callback_data="verify"))
 
     bot.send_message(msg.chat.id, "Join both channels first", reply_markup=kb)
 
-# ================= VERIFY =================
+# ===== VERIFY =====
 @bot.callback_query_handler(func=lambda call: call.data == "verify")
 def verify(call):
     if check_join(call.from_user.id):
@@ -86,7 +93,7 @@ def verify(call):
     else:
         bot.answer_callback_query(call.id, "Join channels first", show_alert=True)
 
-# ================= EARN =================
+# ===== EARN =====
 @bot.message_handler(func=lambda m: m.text == "💰 Earn")
 def earn(msg):
     kb = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -96,7 +103,7 @@ def earn(msg):
     kb.add("⏳ Offer Coming Soon")
     bot.send_message(msg.chat.id, "Select offer:", reply_markup=kb)
 
-# ================= OFFERS =================
+# ===== OFFERS =====
 @bot.message_handler(func=lambda m: m.text == "🥇 Slice ₹250")
 def slice_offer(msg):
     kb = InlineKeyboardMarkup()
@@ -119,13 +126,13 @@ def taskbucks(msg):
 def coming(msg):
     bot.send_message(msg.chat.id, "Complete all offers. New offers coming soon!")
 
-# ================= WALLET =================
+# ===== WALLET (BALANCE BUTTON) =====
 @bot.message_handler(func=lambda m: m.text == "💳 Wallet")
 def wallet(msg):
     user = get_user(msg.from_user.id)
     bot.send_message(msg.chat.id, f"Balance: ₹{user['balance']}")
 
-# ================= WITHDRAW =================
+# ===== WITHDRAW =====
 @bot.message_handler(func=lambda m: m.text == "💸 Withdraw")
 def withdraw(msg):
     user = get_user(msg.from_user.id)
@@ -138,7 +145,7 @@ def withdraw(msg):
     user_step[msg.from_user.id] = "plan"
     bot.send_message(msg.chat.id, "Select plan:", reply_markup=kb)
 
-# ================= HISTORY =================
+# ===== HISTORY =====
 @bot.message_handler(func=lambda m: m.text == "📜 History")
 def history(msg):
     records = withdraw_col.find({"user_id": msg.from_user.id}).sort("_id", -1).limit(5)
@@ -147,7 +154,7 @@ def history(msg):
         text += f"₹{r['amount']} - {r['upi']}\n"
     bot.send_message(msg.chat.id, text)
 
-# ================= HANDLE =================
+# ===== HANDLE =====
 @bot.message_handler(func=lambda msg: True)
 def handle(msg):
     user_id = msg.from_user.id
@@ -190,13 +197,13 @@ def handle(msg):
         bot.send_message(msg.chat.id, "Request sent. Amount deducted.")
         del user_step[user_id]
 
-# ================= ADMIN =================
+# ===== ADMIN =====
 @bot.message_handler(commands=['admin'])
 def admin(msg):
     if msg.from_user.id == ADMIN_ID:
         bot.send_message(msg.chat.id, f"Users: {users_col.count_documents({})}\nBalance: ₹4000")
 
-# ================= RUN =================
+# ===== RUN =====
 if __name__ == "__main__":
-    Thread(target=auto_message).start()
+    Thread(target=auto_message, daemon=True).start()
     bot.infinity_polling()
