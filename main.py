@@ -21,7 +21,7 @@ db = client["telegram_bot"]
 users_col = db["users"]
 withdraw_col = db["withdraw_history"]
 
-CHANNELS = ["@your_main_channel"]
+CHANNELS = ["https://t.me/joinmoney_earning"]
 
 user_step = {}
 
@@ -64,8 +64,8 @@ async def start(msg: types.Message):
     get_user(msg.from_user.id)
     kb = InlineKeyboardMarkup()
     kb.add(
-        InlineKeyboardButton("Join Main", url="https://t.me/your_main_channel"),
-        InlineKeyboardButton("Join Backup", url="https://t.me/your_backup_channel"),
+        InlineKeyboardButton("Join Main", url="https://t.me/joinmoney_earning"),
+        InlineKeyboardButton("Join Backup", url="https://t.me/joinmoney_earning"),
         InlineKeyboardButton("Verify", callback_data="verify")
     )
     await msg.answer("Join both channels first", reply_markup=kb)
@@ -182,3 +182,4 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.create_task(auto_message())
     executor.start_polling(dp)
+    
